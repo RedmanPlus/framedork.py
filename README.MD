@@ -13,11 +13,12 @@ To start using framedork.py, simply clone the repository to your local machine w
 
 To define a page, write a simple function using a `@register` decorator like this:
 
-> ```@framedork.register('/', ['GET'])
+> ```
+> @framedork.register('/', ['GET'])
 >
 >    def index(request):
 >
->        return "index.html", {}```
+>        return "index.html", {}
 
 Page function accepts a request from a browser (a dictionary of all possible parameters from a request), and returns a name of html file of the page and a dictionary of values, that need to be inserted into the page. You can inspect a note on tempating later. 
 You will need to specify all allowed methods for the page. If a page is called by a method, that is not declarated in a `register` decorator, **framedork** will send a '405 Method not allowed' error.
@@ -58,7 +59,7 @@ Now, in your page function, add a dictionary, where keys have the same name as t
 > ```
 > def index(request, id=1):  # id is a hypothetic parameter from http://127.0.0.1:8080/?id=1
 >
->     return 'test.html', {'value': str(id)}```
+>     return 'test.html', {'value': str(id)}
 
 The value of the dictionary will then replace a label in your html page.
 Similarly you can use values sent in a POST request, you'll just need to wrap them in a dictionary with names, that will correspond with the ones in your html.
