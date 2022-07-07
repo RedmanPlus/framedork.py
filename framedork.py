@@ -1,4 +1,5 @@
 import socket
+from preprocessor import insert_values_into_html
 
 RESPONSE_CODES = {
 	200: "HTTP/1.1 200 OK\r\n",
@@ -94,17 +95,12 @@ def request_parse(request: bytes) -> dict:
 
 	return return_dict
 
-def construct_response(conn, code: int, filename: str):
-
-	with open(filename, 'r') as f:
-		body = f.read()
-		body = body.replace("\t", "")
-		body = body.replace("\n", "\r\n")
+def construct_response(conn, code: int, page: str):
 
 	headers = {
 		'Server': 'MyFramework',
 		'Content-Type': 'text/html; encoding=utf8',
-		'Content-Length': str(len(body)),
+		'Content-Length': str(len(page)),
 		'Connection': 'Closed'
 	}
 
@@ -113,7 +109,7 @@ def construct_response(conn, code: int, filename: str):
 	conn.send(RESPONSE_CODES[code].encode())
 	conn.send(headers_raw.encode())
 	conn.send(b'\r\n')
-	conn.send(body.encode())
+	conn.send(page.encode())
 
 def run(*args):
 
@@ -143,11 +139,13 @@ def run(*args):
 					response_code = 405
 				else:
 					if request['PARAMS'] != {}:
-						result = address[1](request, **request['PARAMS'])
+						page, values = address[1](request, **request['PARAMS'])
+						result = insert_values_into_html(page, values)
 						construct_response(conn, 200, result)
 						response_code = 200
 					else:
-						result = address[1](request)
+						page, values = address[1](request)
+						result = insert_values_into_html(page, values)
 						construct_response(conn, 200, result)
 						response_code = 200
 			except KeyError:

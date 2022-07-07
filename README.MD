@@ -13,13 +13,13 @@ To start using framedork.py, simply clone the repository to your local machine w
 
 To define a page, write a simple function using a `@register` decorator like this:
 
-> `@framedork.register('/', ['GET'])
+> ```@framedork.register('/', ['GET'])
 >
-> def index(request):
+>    def index(request):
 >
->   return "index.html"`
+>        return "index.html", {}```
 
-At the current stage of a project, a page function accepts a request from a browser and returns a name of an html file, that will be then loaded and displayed by the framework. You will need to create one by yourself.
+Page function accepts a request from a browser (a dictionary of all possible parameters from a request), and returns a name of html file of the page and a dictionary of values, that need to be inserted into the page. You can inspect a note on tempating later. 
 You will need to specify all allowed methods for the page. If a page is called by a method, that is not declarated in a `register` decorator, **framedork** will send a '405 Method not allowed' error.
 
 ## Accessing URL parameters
@@ -46,6 +46,25 @@ or if you wish to make code cleaner:
 A `request["BODY"]` field is present in all request by default, even in cases if the GET requests was sent. By default it is set to an empty list, so before accessing all of the POST values you need to check if the body is empty. 
 POST-request parameters can be used in inner logic of your program. Currently **framedork** has no implementation of a database connection, so you can use a POST-request body as a list of conditions in case you wish to obstain from url parameters.
 
+## Templating
+
+**Framedork** uses custom html preprocessor akin to Jinja2, but at the current moment has much less functionality, so it is more like abridged Jinja2.
+Currently you can only insert different values into the page. To do that, construct your html file like so:
+
+> `<h1>{value}</h1>`
+
+Now, in your page function, add a dictionary, where keys have the same name as the labels you put in your html file. For example, if you're using URL parameters in your page, you can write a function like this:
+
+> ```
+> def index(request, id=1):  # id is a hypothetic parameter from http://127.0.0.1:8080/?id=1
+>
+>     return 'test.html', {'value': str(id)}```
+
+The value of the dictionary will then replace a label in your html page.
+Similarly you can use values sent in a POST request, you'll just need to wrap them in a dictionary with names, that will correspond with the ones in your html.
+
+Please also note that the amount of labels and passed values must be exactly the same at best (or not less than the labels in your html file at worst), to avoid errors and crashes.
+
 ## Running your website
 
 To run your website, you need to call a `run()` function at the end of the file. Your `run()` function must accept all of the functions you've written **not called** so they can be registered by the framework. You can do it like so:
@@ -63,3 +82,5 @@ or
 if you're using a !# at the beguining of a file.
 
 The web server will be automatically started on 8080 port, where you can access it.
+
+**Please note that** currently you cannot shutdown your server from inside the program or terminal. You can try to use Ctrl-C, but it takes to much time and don't really work. We recomend currently to stop the python process from your machine's controll panell.
