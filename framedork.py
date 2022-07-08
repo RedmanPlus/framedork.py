@@ -1,5 +1,5 @@
 import socket
-from preprocessor import insert_values_into_html
+from src.preprocessor import insert_values_into_html
 
 RESPONSE_CODES = {
 	200: "HTTP/1.1 200 OK\r\n",

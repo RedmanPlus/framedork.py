@@ -54,7 +54,10 @@ POST-request parameters can be used in inner logic of your program. Currently **
 ## Templating
 
 **Framedork** uses custom html preprocessor akin to Jinja2, but at the current moment has much less functionality, so it is more like abridged Jinja2.
-Currently you can only insert different values into the page. To do that, construct your html file like so:
+
+### Inserting values into the page
+
+To insert a value into a page, construct your html file like so:
 
 ```HTML
 <h1>{value}</h1>
@@ -71,6 +74,26 @@ The value of the dictionary will then replace a label in your html page.
 Similarly you can use values sent in a POST request, you'll just need to wrap them in a dictionary with names, that will correspond with the ones in your html.
 
 Please also note that the amount of labels and passed values must be exactly the same at best (or not less than the labels in your html file at worst), to avoid errors and crashes.
+
+### Extending templates
+
+To extend your html file by a template, create a template file like 'base.html'. Base file must contain an extendable block like so:
+
+```HTML
+{% block content %}
+```
+
+Similarly, the file that you will pass from your function should look something like so:
+
+```HTML
+{% extends 'base.html' %}
+{% block content %}
+{% endblock %}
+```
+
+Now all of the html content placed between opening and ending of the block will be inserted into a template, and this template will be shipped to the browser.
+
+Please note that the base template filename is a path relaive to the extendable file, and preferably they both should be located in the same folder.
 
 ## Running your website
 
