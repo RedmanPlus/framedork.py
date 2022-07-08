@@ -13,12 +13,11 @@ To start using framedork.py, simply clone the repository to your local machine w
 
 To define a page, write a simple function using a `@register` decorator like this:
 
-> ```
-> @framedork.register('/', ['GET'])
->
->    def index(request):
->
->        return "index.html", {}
+```Python
+@framedork.register('/', ['GET'])
+def index(request):
+	return "index.html", {}
+```
 
 Page function accepts a request from a browser (a dictionary of all possible parameters from a request), and returns a name of html file of the page and a dictionary of values, that need to be inserted into the page. You can inspect a note on tempating later. 
 You will need to specify all allowed methods for the page. If a page is called by a method, that is not declarated in a `register` decorator, **framedork** will send a '405 Method not allowed' error.
@@ -27,7 +26,9 @@ You will need to specify all allowed methods for the page. If a page is called b
 
 To access URL parameters, add the variable that will hold the value of a parameter to the function input like so:
 
-> `def index(request, id=1):`
+```Python
+def index(request, id=1):
+```
 
 We recomend to set some default values to the parameter, so your program won't crash if a parameter is not present. You can use the value of your URL parameters in an inner logic of your page function.
 
@@ -36,13 +37,16 @@ We recomend to set some default values to the parameter, so your program won't c
 If you wish to use a POST-requests with your page, you can access all of the POST-body parameters with `request["BODY"]`.
 `request["BODY"]` is a dictionary, containing all of the parameters, sent by a POST-request, alteady parsed and splitted by **framedork**. If you know in advance, what parameters are being sent, then you can simply access all the values by
 
-> `param_value = request["BODY"]["name_of_param"]`
+```Python
+param_value = request["BODY"]["name_of_param"]
+```
 
 or if you wish to make code cleaner:
 
-> `body = request["BODY"]`
->
-> `param_value = body["name_of_param"]`
+```Python
+body = request["BODY"]
+param_value = body["name_of_param"]
+```
 
 A `request["BODY"]` field is present in all request by default, even in cases if the GET requests was sent. By default it is set to an empty list, so before accessing all of the POST values you need to check if the body is empty. 
 POST-request parameters can be used in inner logic of your program. Currently **framedork** has no implementation of a database connection, so you can use a POST-request body as a list of conditions in case you wish to obstain from url parameters.
@@ -52,14 +56,16 @@ POST-request parameters can be used in inner logic of your program. Currently **
 **Framedork** uses custom html preprocessor akin to Jinja2, but at the current moment has much less functionality, so it is more like abridged Jinja2.
 Currently you can only insert different values into the page. To do that, construct your html file like so:
 
-> `<h1>{value}</h1>`
+```HTML
+<h1>{value}</h1>
+```
 
 Now, in your page function, add a dictionary, where keys have the same name as the labels you put in your html file. For example, if you're using URL parameters in your page, you can write a function like this:
 
-> ```
-> def index(request, id=1):  # id is a hypothetic parameter from http://127.0.0.1:8080/?id=1
->
->     return 'test.html', {'value': str(id)}
+```Python
+def index(request, id=1):  # id is a hypothetic parameter from http://127.0.0.1:8080/?id=1
+	return 'test.html', {'value': str(id)}
+```
 
 The value of the dictionary will then replace a label in your html page.
 Similarly you can use values sent in a POST request, you'll just need to wrap them in a dictionary with names, that will correspond with the ones in your html.
@@ -70,15 +76,19 @@ Please also note that the amount of labels and passed values must be exactly the
 
 To run your website, you need to call a `run()` function at the end of the file. Your `run()` function must accept all of the functions you've written **not called** so they can be registered by the framework. You can do it like so:
 
-> `framedork.run(index)`
-
+```Python
+framedork.run(index)
+```
 Then simply run your file with
 
-> `python main.py`
-
+```console
+python main.py
+```
 or
 
-> `main.py`
+```console
+main.py
+```
 
 if you're using a !# at the beguining of a file.
 
