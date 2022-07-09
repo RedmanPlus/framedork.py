@@ -49,7 +49,7 @@ param_value = body["name_of_param"]
 ```
 
 A `request["BODY"]` field is present in all request by default, even in cases if the GET requests was sent. By default it is set to an empty list, so before accessing all of the POST values you need to check if the body is empty. 
-POST-request parameters can be used in inner logic of your program. Currently **framedork** has no implementation of a database connection, so you can use a POST-request body as a list of conditions in case you wish to obstain from url parameters.
+POST-request parameters can be used in inner logic of your program.
 
 ## Templating
 
@@ -94,6 +94,96 @@ Similarly, the file that you will pass from your function should look something 
 Now all of the html content placed between opening and ending of the block will be inserted into a template, and this template will be shipped to the browser.
 
 Please note that the base template filename is a path relaive to the extendable file, and preferably they both should be located in the same folder.
+
+## DORM (or dorkORM)
+
+**DORM** is a custom ORM integrated into **framedork**. It can be used for connecting your web app with external database, so you can use this data in your web pages. DORM is currently *work-in-progress*, so any changes may apply.
+
+**DORM** only supports *PostgreSQL* connections for now
+
+### Creating and registering models
+
+First of all, import **DORM** into your main file like so:
+
+```Python
+from src.dorm import Model, StringField, IntField, FloatField, DateField
+```
+
+Now create a model of your SQL table:
+
+```Python
+animal = Model(table='animal', fields=[
+		StringField(null=False, max_len=20, name='name'),
+		StringField(null=False, max_len=30, name='species'),
+		IntField(name='life_expectancy')
+	])
+```
+
+Model accepts two parameters - a name of a relative SQL table and a list of fields it will contain. Please note that your model can reflect an existing SQL table in your database - it will not fail and will just use this table and all it's data, but your model **must** reflect all of the columns 100% or it will crash. So on current stage of development we recomend to use **DORM** models with existing tables only in case these tables have only already implemented fields.
+
+Currently **DORM** can only create 4 field types - String, Integer, Float and date. All of these fields have a `null` parameter, that will define on initiation, if a field can be nullable. By default it is set to `True`, and you don't have to add it into the definition.
+
+To register a model, call a `register_model()` function:
+
+```Python
+framedork.register_model([animal])
+```
+
+`register_model` accepts a list of all models registered by you. It will check, if accociated tables exist in a database, and if not created - will create ones.
+
+### Using **DORM** models in your code
+
+To use **DORM** models in your **framedork** functions, add `global` instruction in a beguining of the file like so:
+
+```Python
+@framedork.register('/animal/', ['GET'])
+def animal_page(request, name='Hyena'):
+	global animal
+```
+
+Currently you can only get values from a database and create new entries.
+
+#### Getting values
+
+To get values from a database, use `get()` and `filter()` methods. A `get()` methods returns all entries into a database in a list of dictionaries, where every dictionary is a separate entry, and every field in a dictionary represents a value with a key of the column name. `filter()` does the same, but it accepts a dictionary of search parameters. Every key in a dictionary must reflect a name of a column in your SQL table.
+
+Now you can use your fetched data in your inner logic or simply send it to the browser with templating.
+
+#### Setting values
+
+To set values for your database, first of all use `add()` method of your model. `add()` method accepts a dictionary of all values, that you wish to write. Note that keys of the dictionary must reflect your SQL table column names, and all NOT NULL fields must be filled.
+
+Then you can use `save()` method and it will authomatically save your data in a database.
+
+It looks something like so:
+
+```Python
+vals = {'name': 'Hyena', 'species': 'Hyaenidae', 'life_expectancy': 30}
+animal.add(vals1)
+animal.save()
+```
+
+## Adding settings
+
+Settings in your **framedork** application are currently used for setting a main database you will connect to. You must set your settings in the beguining of the file, before any usage of the models will beguin. It looks like this:
+
+```Python
+framedork.set_settings(
+	db='psql',
+	db_conn={'host': 'localhost',
+				'dbname': 'orm_test',
+				'user': 'postgres',
+				'password': '####',
+				'port': '5432'
+				})
+
+animal = Model(table='animal', fields=[
+	# ANY OTHER MODEL RELATED CODE...
+```
+
+`set_settings()` function accepts two arguments:
+- db: a database you will use. Currently accepts only 'psql' as a parameter.
+- db_conn: All of the necessary credential information to connect with the database. Please make sure that all of the credentials are correct.
 
 ## Running your website
 

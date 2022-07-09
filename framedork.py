@@ -1,5 +1,7 @@
 import socket
+from src.settings import Settings
 from src.preprocessor import insert_values_into_html
+from src.dorm import Connector, Model, StringField, IntField, FloatField, DateField
 
 RESPONSE_CODES = {
 	200: "HTTP/1.1 200 OK\r\n",
@@ -10,9 +12,16 @@ RESPONSE_CODES = {
 
 PAGES = {}
 DEBUG = False
+SETTINGS = None
 
-def set_debug(state: bool) -> None:
-	DEBUG = state
+def set_settings(db: str, db_conn: dict) -> None:
+	global SETTINGS
+	SETTINGS = Settings(db=db, db_conn=db_conn)
+
+def register_model(models: list) -> None:
+	connector = Connector(db=SETTINGS.db, conn_values=SETTINGS.db_conn)
+	for model in models:
+		model._register(connector)
 
 def register(addr: str, methods: list):
 	def decorator(func):
@@ -120,6 +129,8 @@ def run(*args):
 	sock.bind(('', 8080))
 	sock.listen(10)
 
+	print(PAGES)
+
 	conn, addr = sock.accept()
 	print("connected: ", addr)
 
@@ -140,6 +151,7 @@ def run(*args):
 				else:
 					if request['PARAMS'] != {}:
 						page, values = address[1](request, **request['PARAMS'])
+						print(page, values)
 						result = insert_values_into_html(page, values)
 						construct_response(conn, 200, result)
 						response_code = 200

@@ -84,7 +84,7 @@ def insert_values_into_html(filename: str, values: dict) -> str:
 				buffer_in = False
 				html_list.append(buffer)
 				buffer = ''
-				html_list.append(values[buffer_list[insert_counter]])
+				html_list.append(str(values[buffer_list[insert_counter]]))
 				insert_counter += 1
 			else:
 				buffer += a[i]

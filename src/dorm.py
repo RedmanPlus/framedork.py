@@ -102,8 +102,16 @@ class Model:
 	def __init__(self, /, table: str, fields: list) -> None:
 		self.table = table
 		self.fields = fields
+		self.connector = None
 
-	def create(self, conn, cur) -> int:
+	# Inner methods for working within the class or from the framework
+
+	def _register(self, connector):
+		self.connector = connector
+
+		_ = self.connector.connect(self._connect)
+
+	def _create(self, conn, cur) -> int:
 
 		create_list = [field._psql_create_value for field in self.fields]
 
@@ -120,14 +128,26 @@ class Model:
 		cur.execute(script)
 		conn.commit()
 
-		return 1
+		return {}
 
-	def add_vals(self, values: dict) -> None:
+	def _connect(self, conn, cur) -> int:
+
+		cur.execute("""SELECT table_name FROM information_schema.tables
+				   WHERE table_schema = 'public'""")
+
+		if (f'{self.table}',) not in cur.fetchall():
+			result = self._create(conn, cur)
+
+			return result
+
+		return {}
+
+	def _add_vals(self, values: dict) -> None:
 		for field in self.fields:
 			field._set_val(values[field.name])
 			print(field._get_val())
 
-	def write_row(self, conn, cur) -> int:
+	def _write_row(self, conn, cur) -> int:
 
 		name_list = [field.name for field in self.fields]
 		value_list = [field._get_val() for field in self.fields]
@@ -162,7 +182,26 @@ class Model:
 
 		return 1
 
-	def get_row_by_params(self, conn, cur, params: dict) -> any:
+	def _get_all_rows(self, conn, cur) -> list:
+
+		script = f"""SELECT * FROM {self.table}"""
+
+		cur.execute(script)
+
+		result = cur.fetchall()
+
+		queryset = []
+
+		for one in result:
+			query = {}
+			for i, entry in enumerate(one):
+				query[self.fields[i].name] = entry
+
+			queryset.append(query)
+
+		return queryset
+
+	def _get_row_by_params(self, conn, cur, params: dict) -> list:
 
 		script = f"""SELECT * FROM {self.table}"""
 
@@ -192,34 +231,34 @@ class Model:
 
 		return queryset
 
+	# Methods for high-level handling inside the web program.
 
-# For the testing pusposes
+	def get(self) -> list:
 
-name = StringField(null=False, max_len=40, name='name')
-author = StringField(null=False, max_len=90, name='author')
-date_published = DateField(null=False, name='date_published', default_current_date=False)
-amount = IntField(name='amount')
-price = FloatField(name='price', nums_first=5, nums_last=2)
+		result = self.connector.connect(self._get_all_rows)
 
-m = Model(table='Books', fields=[name, author, date_published, amount, price])
+		return result
 
+	def filter(self, params: dict) -> list:
 
-values = {
-	'name': 'War and Peace, v4',
-	'author': 'Leo Tolstoy',
-	'date_published': datetime.date(datetime(1876, 1, 1)),
-	'amount': 536,
-	'price': 613.49
-}
+		result = self.connector.connect(self._get_row_by_params, params)
 
-params = {'author': 'Leo Tolstoy', 'amount': 536}
+		return result
+
+	def add(self, vals: dict) -> None:
+
+		self._add_vals(vals)
+
+	def save(self) -> None:
+
+		result = self.connector.connect(self._write_row)
 
 class Connector:
 	def __init__(self, /, db: str, conn_values: dict) -> None:
 		self.db: str = db
 		self.conn_values: dict = conn_values
 
-	def connect(self, func, *args) -> dict:
+	def connect(self, func, *args) -> any:
 		if self.db == 'psql':
 
 			conn = None
@@ -256,8 +295,6 @@ class Connector:
 
 		table_records = cur.fetchall()
 
-		initial_data = {}
-
 		for table in table_records:
 			cur.execute(f"""SELECT * FROM {table[0]} LIMIT 0""")
 			colnames = [desc[0] for desc in cur.description]
@@ -265,18 +302,55 @@ class Connector:
 
 		return initial_data
 
-# Also testing
+# Testing
 
-values = {
-	'host': 'localhost',
-	'dbname': 'orm_test',
-	'user': 'postgres',
-	'password': '1234',
-	'port': '5432'
-}
+#values = {
+#	'host': 'localhost',
+#	'dbname': 'orm_test',
+#	'user': 'postgres',
+#	'password': '1234',
+#	'port': '5432'
+#}
 
-c = Connector(db='psql', conn_values=values)
+#c = Connector(db='psql', conn_values=values)
 
-result = c.connect(m.get_row_by_params, params)
+#result = c.connect(m.get_row_by_params, params)
 
-print(result)
+#print(result)
+
+#animal = Model(table='animal', fields=[
+#		StringField(null=False, max_len=20, name='name'),
+#		StringField(null=False, max_len=30, name='species'),
+#		IntField(name='life_expectancy')
+#	])
+
+#animal._register(c)
+
+#vals1 = {'name': 'Hyena', 'species': 'Hyaenidae', 'life_expectancy': 30}
+#vals2 = {'name': 'Elephant', 'species': 'Cool', 'life_expectancy': 60}
+#vals3 = {'name': 'Human', 'species': 'Homo', 'life_expectancy': 80}
+#vals4 = {'name': 'Dog', 'species': 'Cute', 'life_expectancy': 15}
+#vals5 = {'name': 'Mouse', 'species': 'Snich', 'life_expectancy': 3}
+#vals6 = {'name': 'Cat', 'species': 'Cute', 'life_expectancy': 15}
+
+#animal.add(vals1)
+#animal.save()
+
+#animal.add(vals2)
+#animal.save()
+
+#animal.add(vals3)
+#animal.save()
+
+#animal.add(vals4)
+#animal.save()
+
+#animal.add(vals5)
+#animal.save()
+
+#animal.add(vals6)
+#animal.save()
+
+#result = animal.filter({'name': 'Dog'})
+
+#print(result)
