@@ -162,6 +162,37 @@ class Model:
 
 		return 1
 
+	def get_row_by_params(self, conn, cur, params: dict) -> any:
+
+		script = f"""SELECT * FROM {self.table}"""
+
+		if params != {}:
+			script += "\nWHERE"
+			for i, field in enumerate(self.fields):
+				try:
+					if type(params[field.name]) == int or type(params[field.name]) == float:
+						script += f' {field.name} = {params[field.name]} AND'
+					else:
+						script += f" {field.name} = '{params[field.name]}' AND"
+				except KeyError:
+					continue
+			else:
+				script = script[:-4]
+				script += ';'
+
+		cur.execute(script)
+		result = cur.fetchall()
+
+		queryset = []
+		for one in result:
+			query = {}
+			for i, entry in enumerate(one):
+				query[self.fields[i].name] = entry
+			queryset.append(query)
+
+		return queryset
+
+
 # For the testing pusposes
 
 name = StringField(null=False, max_len=40, name='name')
@@ -174,14 +205,14 @@ m = Model(table='Books', fields=[name, author, date_published, amount, price])
 
 
 values = {
-	'name': 'War and Peace',
+	'name': 'War and Peace, v4',
 	'author': 'Leo Tolstoy',
-	'date_published': datetime.date(datetime(1873, 1, 1)),
+	'date_published': datetime.date(datetime(1876, 1, 1)),
 	'amount': 536,
 	'price': 613.49
 }
 
-m.add_vals(values)
+params = {'author': 'Leo Tolstoy', 'amount': 536}
 
 class Connector:
 	def __init__(self, /, db: str, conn_values: dict) -> None:
@@ -240,12 +271,12 @@ values = {
 	'host': 'localhost',
 	'dbname': 'orm_test',
 	'user': 'postgres',
-	'password': '####',
+	'password': '1234',
 	'port': '5432'
 }
 
 c = Connector(db='psql', conn_values=values)
 
-result = c.connect(m.write_row)
+result = c.connect(m.get_row_by_params, params)
 
 print(result)
