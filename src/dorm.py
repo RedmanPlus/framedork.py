@@ -8,6 +8,23 @@ class Field:
 		self.null = null,
 		self.max_len = max_len
 
+class IDField(Field):
+
+	def __init__(self, /, null: bool = False, max_len: int = 1000):
+		super(self.__class__, self).__init__(null, max_len)
+		self.name = 'id'
+		self._psql_create_value = """id INT GENERATED ALWAYS AS IDENTITY,"""
+		self._val = None
+
+	def _set_val(self, input: int) -> None:
+		if type(input) == int:
+			self._val = input
+		else:
+			print("ERROR: tried to push a value to the model that is not an integer")
+
+	def _get_val(self) -> int:
+		return self._val	   
+
 class StringField(Field):
 
 	def __init__(self, /, null: bool = True, max_len: int = 1000, name: str = '') -> None:
@@ -101,7 +118,7 @@ class DateField(Field):
 class Model:
 	def __init__(self, /, table: str, fields: list) -> None:
 		self.table = table
-		self.fields = fields
+		self.fields = [IDField(), *fields]
 		self.connector = None
 
 	# Inner methods for working within the class or from the framework
@@ -115,7 +132,7 @@ class Model:
 
 		create_list = [field._psql_create_value for field in self.fields]
 
-		script = f"CREATE TABLE {self.table} (\n"
+		script = f"""CREATE TABLE {self.table} (\n"""
 
 		for i, line in enumerate(create_list):
 			if i == len(create_list) -1:
@@ -127,6 +144,8 @@ class Model:
 
 		cur.execute(script)
 		conn.commit()
+
+		self.fields.append(IntField())
 
 		return {}
 
@@ -144,8 +163,10 @@ class Model:
 
 	def _add_vals(self, values: dict) -> None:
 		for field in self.fields:
-			field._set_val(values[field.name])
-			print(field._get_val())
+			try:
+				field._set_val(values[field.name])
+			except KeyError:
+				continue
 
 	def _write_row(self, conn, cur) -> int:
 
@@ -153,8 +174,8 @@ class Model:
 		value_list = [field._get_val() for field in self.fields]
 
 		script = f"INSERT INTO {self.table} ("
-		for i, name in enumerate(name_list):
-			if i == len(name_list) - 1:
+		for i, name in enumerate(name_list[1:]):
+			if i == len(name_list[1:]) - 1:
 				script += name
 			else:
 				script += name + ', '
@@ -163,8 +184,8 @@ class Model:
 
 		script += 'VALUES ('
 
-		for i, value in enumerate(value_list):
-			if i == len(value_list) - 1:
+		for i, value in enumerate(value_list[1:]):
+			if i == len(value_list[1:]) - 1:
 				if type(value) == str or (type(value) != int and type(value) != float):
 					script += "'" + value + "'"
 				else:
@@ -176,6 +197,34 @@ class Model:
 					script += str(value) + ', '
 		else:
 			script += ');'
+
+		cur.execute(script)
+		conn.commit()
+
+		return 1
+
+	def _update_row(self, conn, cur) -> int:
+
+		value_list = [field._get_val() for field in self.fields[1:]]
+
+		script = f"""UPDATE {self.table} SET ("""
+
+		for field in self.fields[1:]:
+			script += field.name + ', '
+		else:
+			script = script[:-2]
+			script += ') = ('
+
+		for value in value_list:
+			if type(value) == str or (type(value) != int and type(value) != float):
+				script += "'" + str(value) + "'" + ", "
+			else:
+				script += str(value) + ', '
+		else:
+			script = script[:-2]
+			script += ")\n"
+
+		script += f'WHERE id = {self.fields[0]._get_val()};'
 
 		cur.execute(script)
 		conn.commit()
@@ -231,6 +280,26 @@ class Model:
 
 		return queryset
 
+	def _delete_by_param(self, conn, cur, params: dict) -> int:
+		script = f"""DELETE FROM {self.table}\nWHERE"""
+
+		for field in self.fields:
+			try:
+				if type(params[field.name]) == int or type(params[field.name]) == float:
+					script += f' {field.name} = {params[field.name]} AND'
+				else:
+					script += f" {field.name} = '{params[field.name]}' AND"
+			except KeyError:
+				continue
+		else:
+			script = script[:-4]
+			script += ';'
+
+		cur.execute(script)
+		conn.commit()
+
+		return 1
+
 	# Methods for high-level handling inside the web program.
 
 	def get(self) -> list:
@@ -250,8 +319,19 @@ class Model:
 		self._add_vals(vals)
 
 	def save(self) -> None:
+		check = self.connector.connect(self._get_all_rows)
+		print(check)
 
-		result = self.connector.connect(self._write_row)
+		for one in check:
+			if one['id'] == self.fields[0]._val:
+				result = self.connector.connect(self._update_row)
+				break
+		else:
+			result = self.connector.connect(self._write_row)
+
+	def delete(self, params: dict) -> None:
+
+		result = self.connector.connect(self._delete_by_param, params)
 
 class Connector:
 	def __init__(self, /, db: str, conn_values: dict) -> None:
@@ -301,56 +381,3 @@ class Connector:
 			initial_data[table[0]] = colnames
 
 		return initial_data
-
-# Testing
-
-#values = {
-#	'host': 'localhost',
-#	'dbname': 'orm_test',
-#	'user': 'postgres',
-#	'password': '1234',
-#	'port': '5432'
-#}
-
-#c = Connector(db='psql', conn_values=values)
-
-#result = c.connect(m.get_row_by_params, params)
-
-#print(result)
-
-#animal = Model(table='animal', fields=[
-#		StringField(null=False, max_len=20, name='name'),
-#		StringField(null=False, max_len=30, name='species'),
-#		IntField(name='life_expectancy')
-#	])
-
-#animal._register(c)
-
-#vals1 = {'name': 'Hyena', 'species': 'Hyaenidae', 'life_expectancy': 30}
-#vals2 = {'name': 'Elephant', 'species': 'Cool', 'life_expectancy': 60}
-#vals3 = {'name': 'Human', 'species': 'Homo', 'life_expectancy': 80}
-#vals4 = {'name': 'Dog', 'species': 'Cute', 'life_expectancy': 15}
-#vals5 = {'name': 'Mouse', 'species': 'Snich', 'life_expectancy': 3}
-#vals6 = {'name': 'Cat', 'species': 'Cute', 'life_expectancy': 15}
-
-#animal.add(vals1)
-#animal.save()
-
-#animal.add(vals2)
-#animal.save()
-
-#animal.add(vals3)
-#animal.save()
-
-#animal.add(vals4)
-#animal.save()
-
-#animal.add(vals5)
-#animal.save()
-
-#animal.add(vals6)
-#animal.save()
-
-#result = animal.filter({'name': 'Dog'})
-
-#print(result)
