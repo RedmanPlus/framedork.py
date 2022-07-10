@@ -163,6 +163,35 @@ animal.add(vals1)
 animal.save()
 ```
 
+#### Updating values
+
+To update values in your database, you can also use `add()` and `save()` combination. `save()` method checks if the entry by this id already exists in your database and either updates it or creates a new one.
+
+For example, you fetch some information from your database. Then you apply some transformation to this data. Now you can `add()` it back to the model and then `save()` it. It looks like so:
+
+```Python
+animals = animal.get()
+one = animals[0]
+
+one['name'] = 'Qute Hyena'
+
+animal.add(one)
+animal.save()
+```
+
+We recomend to apply any changes directly to the data you fetched to avoid any errors.
+
+#### Deleting values
+
+To delete a value from your database, use `delete()` method. It accepts a dictionary, where every key represents a name of the field. The value represents a value of this particular column in the database, that will be deleted.
+
+It looks like this:
+
+```Python
+animal.delete({'name': 'Hyena'})
+```
+Note that `delete()` method may delete multiple entries in your database if your dictionary is not very specific or there is multiple entries that contain the value you specified to be deleted.
+
 ## Adding settings
 
 Settings in your **framedork** application are currently used for setting a main database you will connect to. You must set your settings in the beguining of the file, before any usage of the models will beguin. It looks like this:
