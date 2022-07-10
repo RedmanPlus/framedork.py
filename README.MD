@@ -49,7 +49,44 @@ param_value = body["name_of_param"]
 ```
 
 A `request["BODY"]` field is present in all request by default, even in cases if the GET requests was sent. By default it is set to an empty list, so before accessing all of the POST values you need to check if the body is empty. 
-POST-request parameters can be used in inner logic of your program.
+POST-request parameters can be used in inner logic of your program or for getting values into the database.
+
+## POST, PUT and DELETE methods
+
+All three methods generate a `request['BODY']` dictionary, that you can accept. To differenciate between the methods inside your **framedork** function, we recomend to use `match request['METHOD']:` structure, or if you're using an older version of Python - `if request['METHOD'] == 'GET'` structure.
+
+It looks something like this:
+
+```Python
+@framedork.register('/foo/', ['GET', 'POST', 'PUT', 'DELETE'])
+def foo(request, id=1):
+	match request['METHOD']:
+		case 'GET':										# A simple GET request, just returns
+			return 'test2.html', {'value': str(id)}		# a page with values from parameters
+		case 'POST':									
+			values = request['BODY']					# POST takes values from the request
+			animal.add(values)							# and uses them to create a new record
+			animal.save()								# in the database
+			return 'test2.html', {'value': str(id)}
+		case 'PUT':									
+			values = request['BODY']					# PUT request at first gets an entry
+			check = animal.filter({'id': 1})			# that needs to be checked, then
+			print(check)								# updates it with the data from a 
+			for key, value in values.items():			# PUT requet and updates the data
+				try:
+					check[0][key] = value
+				except KeyError:
+					continue
+			animal.add(check[0])
+			animal.save()
+			return 'test2.html', {'value': str(id)}
+		case 'DELETE':									# DELETE takes data from your request
+			values = request['BODY']					# and deletes all entries that satisfy
+			animal.delete(values)						# the condition
+			return 'test2.html', {'value': str(id)}
+```
+
+All of the methods can be used to create a more interractive backend or to make an API.
 
 ## Templating
 

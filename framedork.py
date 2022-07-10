@@ -14,6 +14,10 @@ PAGES = {}
 DEBUG = False
 SETTINGS = None
 
+def set_debug(debug: bool) -> None:
+	global DEBUG
+	DEBUG = debug
+
 def set_settings(db: str, db_conn: dict) -> None:
 	global SETTINGS
 	SETTINGS = Settings(db=db, db_conn=db_conn)
@@ -65,8 +69,14 @@ def parse_post_body(request: dict):
 				continue
 			else:
 				line[0] = line[0].lstrip().replace('"', '')
-				line[1] = line[1].replace('"', '')
-				body[line[0]] = line[1]
+				line[1] = line[1].replace('"', '').replace(',', '')
+				try:
+					if '.' in line[1]:
+						body[line[0]] = float(line[1])
+					else:
+						body[line[0]] = int(line[1])
+				except ValueError:
+					body[line[0]] = line[1]
 
 		request['BODY'] = body
 
@@ -75,6 +85,8 @@ def request_parse(request: bytes) -> dict:
 	request = request.decode().split('\r\n')
 	empty_line_count = 0
 	for line in request:
+		if DEBUG:
+			print(line)
 		line = line.split(': ')
 		if len(line) == 1 and line[0] != '' :
 			if empty_line_count == 0:			
@@ -99,7 +111,7 @@ def request_parse(request: bytes) -> dict:
 			else:
 				return_dict['BODY'].append(line)
 
-	if return_dict['METHOD'] == 'POST':
+	if return_dict['METHOD'] != 'GET':
 		parse_post_body(return_dict)
 
 	return return_dict

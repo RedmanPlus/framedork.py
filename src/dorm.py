@@ -226,6 +226,8 @@ class Model:
 
 		script += f'WHERE id = {self.fields[0]._get_val()};'
 
+		print(script)
+
 		cur.execute(script)
 		conn.commit()
 
