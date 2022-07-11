@@ -20,9 +20,9 @@ def set_debug(debug: bool) -> None:
 	global DEBUG
 	DEBUG = debug
 
-def set_settings(db: str, db_conn: dict) -> None:
+def set_settings(host: str = '', port: int = 8080, conns: int = 1, conn_size: int = 1024, db: str = '', db_conn: dict = {}) -> None:
 	global SETTINGS
-	SETTINGS = Settings(db=db, db_conn=db_conn)
+	SETTINGS = Settings(host=host, port=port, conns=conns, conn_size=conn_size, db=db, db_conn=db_conn)
 
 def register_model(models: list) -> None:
 	connector = Connector(db=SETTINGS.db, conn_values=SETTINGS.db_conn)
@@ -157,15 +157,15 @@ def run(*args):
 		result = function()
 
 	sock = socket.socket()
-	sock.bind(('', 8080))
-	sock.listen(10)
+	sock.bind((SETTINGS.host, SETTINGS.port))
+	sock.listen(SETTINGS.conns)
 
 	conn, addr = sock.accept()
 	print("connected: ", addr)
 
 	while True:
 		try:
-			data = conn.recv(2048).decode()
+			data = conn.recv(SETTINGS.conn_size).decode()
 			if not data:
 				break
 

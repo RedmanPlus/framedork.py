@@ -231,10 +231,12 @@ Note that `delete()` method may delete multiple entries in your database if your
 
 ## Adding settings
 
-Settings in your **framedork** application are currently used for setting a main database you will connect to. You must set your settings in the beguining of the file, before any usage of the models will beguin. It looks like this:
+Settings in your **framedork** application are used for specifiing what host and port to connect to, and what are the database credentials. You must set your settings in the beguining of the file, before any usage of the models will beguin. It looks like this:
 
 ```Python
 framedork.set_settings(
+	host='127.0.0.1',
+	port=8000,
 	db='psql',
 	db_conn={'host': 'localhost',
 				'dbname': 'orm_test',
@@ -247,9 +249,15 @@ animal = Model(table='animal', fields=[
 	# ANY OTHER MODEL RELATED CODE...
 ```
 
-`set_settings()` function accepts two arguments:
+`set_settings()` function accepts these arguments:
+- host: an IP adress from which the server will send the data.
+- port: the port that will be used for connection.
+- conns: the amount of consequent connections that are avaliable simultaneously.
+- conn_size: the amount of bytes allowed to be recieved once at a time by the server from the client.
 - db: a database you will use. Currently accepts only 'psql' as a parameter.
 - db_conn: All of the necessary credential information to connect with the database. Please make sure that all of the credentials are correct.
+
+All of the `set_settings()` parameters are optional and have a default value exept the parameters related to the database.
 
 ## Using framedork for creating API-s
 
