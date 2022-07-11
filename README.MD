@@ -14,13 +14,13 @@ To start using framedork.py, simply clone the repository to your local machine w
 To define a page, write a simple function using a `@register` decorator like this:
 
 ```Python
-@framedork.register('/', ['GET'])
+@framedork.register('html', '/', ['GET'])
 def index(request):
 	return "index.html", {}
 ```
 
 Page function accepts a request from a browser (a dictionary of all possible parameters from a request), and returns a name of html file of the page and a dictionary of values, that need to be inserted into the page. You can inspect a note on tempating later. 
-You will need to specify all allowed methods for the page. If a page is called by a method, that is not declarated in a `register` decorator, **framedork** will send a '405 Method not allowed' error.
+You will need to specify all allowed methods for the page. If a page is called by a method, that is not declarated in a `register` decorator, **framedork** will send a '405 Method not allowed' error. Also you need to specify if a function returns html page or a json response.
 
 ## Accessing URL parameters
 
@@ -250,6 +250,31 @@ animal = Model(table='animal', fields=[
 `set_settings()` function accepts two arguments:
 - db: a database you will use. Currently accepts only 'psql' as a parameter.
 - db_conn: All of the necessary credential information to connect with the database. Please make sure that all of the credentials are correct.
+
+## Using framedork for creating API-s
+
+You can specify what kind of response will the function send to the browser. To make your function send a json string, specify the content type in your `@register` decorator:
+
+```Python
+@framedork.register('json', '/api/', ['GET', 'POST'])
+def api(request):
+	return {'hi': 'you\'re qute'}
+```
+
+Your function will return only a dictionary of values this time, without any html files specified. Now **framedork** will send it to the browser or to any endpoint that will call your website at this address. 
+
+Also, since **DORM** `get()` and `filter()` methods return a list of dictionaries with entries to the database, you can simply fetch all the data you need and straight up send the response to the client like so:
+
+```Python
+@framedork.register('json', '/api/', ['GET', 'POST'])
+def api(request, id=1):
+	response = animal.filter({'id': id})
+	if response == []:
+		return {'error': 'nothing found'}
+	return response[0]
+```
+
+This way you can create a series of different endpoints that will communicate with the database, resulting in a full **framedork** backend.
 
 ## Running your website
 

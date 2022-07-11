@@ -1,4 +1,5 @@
 import socket
+import json
 from src.settings import Settings
 from src.preprocessor import insert_values_into_html
 from src.dorm import Connector, Model, StringField, IntField, FloatField, DateField
@@ -7,7 +8,8 @@ RESPONSE_CODES = {
 	200: "HTTP/1.1 200 OK\r\n",
 	400: "HTTP/1.1 400 BAD_REQUEST\r\n",
 	404: "HTTP/1.1 404 NOT_FOUND\r\n",
-	405: "HTTP/1.1 405 Method not allowed\r\n"
+	405: "HTTP/1.1 405 Method not allowed\r\n",
+	500: "HTTP/1.1 500 Internal server error\r\n"
 }
 
 PAGES = {}
@@ -27,10 +29,10 @@ def register_model(models: list) -> None:
 	for model in models:
 		model._register(connector)
 
-def register(addr: str, methods: list):
+def register(content: str, addr: str, methods: list):
 	def decorator(func):
 		def wrapper(*args, **kwargs):
-			PAGES[addr] = [methods, func]
+			PAGES[addr] = [methods, func, content]
 
 		return wrapper
 	return decorator
@@ -51,7 +53,7 @@ def get_url_params(addr: str) -> tuple:
 				elif body == 'false':
 					params_dict[head] = False
 				else:
-					params_dict[head] = body
+					params_dict[head] = body.replace('%20', ' ')
 
 		return (addr, params_dict)
 	
@@ -82,7 +84,7 @@ def parse_post_body(request: dict):
 
 def request_parse(request: bytes) -> dict:
 	return_dict = {}
-	request = request.decode().split('\r\n')
+	request = request.split('\r\n')
 	empty_line_count = 0
 	for line in request:
 		if DEBUG:
@@ -116,21 +118,38 @@ def request_parse(request: bytes) -> dict:
 
 	return return_dict
 
-def construct_response(conn, code: int, page: str):
+def construct_response(conn, code: int, page: str, content: str = 'html'):
+	if content == 'html':
+		headers = {
+			'Server': 'MyFramework',
+			'Content-Type': 'text/html; encoding=utf8',
+			'Content-Length': str(len(page)),
+			'Connection': 'keep-alive'
+		}
 
-	headers = {
-		'Server': 'MyFramework',
-		'Content-Type': 'text/html; encoding=utf8',
-		'Content-Length': str(len(page)),
-		'Connection': 'Closed'
-	}
+		headers_raw = ''.join('%s: %s\r\n' % (k, v) for k, v in headers.items())
 
-	headers_raw = ''.join('%s: %s\r\n' % (k, v) for k, v in headers.items())
+		conn.send(RESPONSE_CODES[code].encode())
+		conn.send(headers_raw.encode())
+		conn.send(b'\r\n')
+		conn.send(page.encode())
+	elif content == 'json':
 
-	conn.send(RESPONSE_CODES[code].encode())
-	conn.send(headers_raw.encode())
-	conn.send(b'\r\n')
-	conn.send(page.encode())
+		page = json.dumps(page)
+
+		headers = {
+			'Server': 'MyFramework',
+			'Content-Type': 'application/json; encoding=utf8',
+			'Content-Length': str(len(page)),
+			'Connection': 'keep-alive'
+		}
+
+		headers_raw = ''.join('%s: %s\r\n' % (k, v) for k, v in headers.items())
+
+		conn.send(RESPONSE_CODES[code].encode())
+		conn.send(headers_raw.encode())
+		conn.send(b'\r\n')
+		conn.send(page.encode())
 
 def run(*args):
 
@@ -141,37 +160,49 @@ def run(*args):
 	sock.bind(('', 8080))
 	sock.listen(10)
 
-	print(PAGES)
-
 	conn, addr = sock.accept()
 	print("connected: ", addr)
 
 	while True:
 		try:
-			data = conn.recv(1024)
+			data = conn.recv(2048).decode()
 			if not data:
 				break
+
 			request = request_parse(data)
 			if DEBUG:
 				for key, value in request.items():
 					print(f"{key}: {value}")
 			try:
 				address = PAGES[request['ADDR']]
-				if request['METHOD'] not in PAGES[request['ADDR']][0]:
-					construct_response(conn, 405, '405.html')
-					response_code = 405
-				else:
-					if request['PARAMS'] != {}:
-						page, values = address[1](request, **request['PARAMS'])
-						print(page, values)
-						result = insert_values_into_html(page, values)
-						construct_response(conn, 200, result)
-						response_code = 200
+				if address[2] == 'html':
+					if request['METHOD'] not in PAGES[request['ADDR']][0]:
+						construct_response(conn, 405, '405.html')
+						response_code = 405
 					else:
-						page, values = address[1](request)
-						result = insert_values_into_html(page, values)
-						construct_response(conn, 200, result)
-						response_code = 200
+						if request['PARAMS'] != {}:
+							page, values = address[1](request, **request['PARAMS'])
+							result = insert_values_into_html(page, values)
+							construct_response(conn, 200, result)
+							response_code = 200
+						else:
+							page, values = address[1](request)
+							result = insert_values_into_html(page, values)
+							construct_response(conn, 200, result)
+							response_code = 200
+				elif address[2] == 'json':
+					if request['METHOD'] not in PAGES[request['ADDR']][0]:
+						construct_response(conn, 405, '405.html')
+						response_code = 405
+					else:
+						if request['PARAMS'] != {}:
+							response = address[1](request, **request['PARAMS'])
+							construct_response(conn, 200, response, 'json')
+							response_code = 200
+						else:
+							response = address[1](request)
+							construct_response(conn, 200, response, 'json')
+							response_code = 200
 			except KeyError:
 				construct_response(conn, 404, "error.html")
 				response_code = 404
