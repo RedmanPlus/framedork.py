@@ -152,64 +152,66 @@ def construct_response(conn, code: int, page: str, content: str = 'html'):
 		conn.send(page.encode())
 
 def run(*args):
+	if SETTINGS.deploy == 'Local'
+		for function in args:
+			result = function()
 
-	for function in args:
-		result = function()
+		sock = socket.socket()
+		sock.bind((SETTINGS.host, SETTINGS.port))
+		sock.listen(SETTINGS.conns)
 
-	sock = socket.socket()
-	sock.bind((SETTINGS.host, SETTINGS.port))
-	sock.listen(SETTINGS.conns)
+		conn, addr = sock.accept()
+		print("connected: ", addr)
 
-	conn, addr = sock.accept()
-	print("connected: ", addr)
-
-	while True:
-		try:
-			data = conn.recv(SETTINGS.conn_size).decode()
-			if not data:
-				break
-
-			request = request_parse(data)
-			if DEBUG:
-				for key, value in request.items():
-					print(f"{key}: {value}")
+		while True:
 			try:
-				address = PAGES[request['ADDR']]
-				if address[2] == 'html':
-					if request['METHOD'] not in PAGES[request['ADDR']][0]:
-						construct_response(conn, 405, '405.html')
-						response_code = 405
-					else:
-						if request['PARAMS'] != {}:
-							page, values = address[1](request, **request['PARAMS'])
-							result = insert_values_into_html(page, values)
-							construct_response(conn, 200, result)
-							response_code = 200
+				data = conn.recv(SETTINGS.conn_size).decode()
+				if not data:
+					break
+
+				request = request_parse(data)
+				if DEBUG:
+					for key, value in request.items():
+						print(f"{key}: {value}")
+				try:
+					address = PAGES[request['ADDR']]
+					if address[2] == 'html':
+						if request['METHOD'] not in PAGES[request['ADDR']][0]:
+							construct_response(conn, 405, '405.html')
+							response_code = 405
 						else:
-							page, values = address[1](request)
-							result = insert_values_into_html(page, values)
-							construct_response(conn, 200, result)
-							response_code = 200
-				elif address[2] == 'json':
-					if request['METHOD'] not in PAGES[request['ADDR']][0]:
-						construct_response(conn, 405, '405.html')
-						response_code = 405
-					else:
-						if request['PARAMS'] != {}:
-							response = address[1](request, **request['PARAMS'])
-							construct_response(conn, 200, response, 'json')
-							response_code = 200
+							if request['PARAMS'] != {}:
+								page, values = address[1](request, **request['PARAMS'])
+								result = insert_values_into_html(page, values)
+								construct_response(conn, 200, result)
+								response_code = 200
+							else:
+								page, values = address[1](request)
+								result = insert_values_into_html(page, values)
+								construct_response(conn, 200, result)
+								response_code = 200
+					elif address[2] == 'json':
+						if request['METHOD'] not in PAGES[request['ADDR']][0]:
+							construct_response(conn, 405, '405.html')
+							response_code = 405
 						else:
-							response = address[1](request)
-							construct_response(conn, 200, response, 'json')
-							response_code = 200
-			except KeyError:
-				construct_response(conn, 404, "error.html")
-				response_code = 404
+							if request['PARAMS'] != {}:
+								response = address[1](request, **request['PARAMS'])
+								construct_response(conn, 200, response, 'json')
+								response_code = 200
+							else:
+								response = address[1](request)
+								construct_response(conn, 200, response, 'json')
+								response_code = 200
+				except KeyError:
+					construct_response(conn, 404, "error.html")
+					response_code = 404
 
-			print(addr, request['ADDR'], request['PARAMS'], request['METHOD'], RESPONSE_CODES[response_code])
+				print(addr, request['ADDR'], request['PARAMS'], request['METHOD'], RESPONSE_CODES[response_code])
 
-		except KeyboardInterrupt:
-			conn.close()
+			except KeyboardInterrupt:
+				conn.close()
 
-	conn.close()
+		conn.close()
+	elif SETTINGS.deploy == 'WGSI':
+		pass

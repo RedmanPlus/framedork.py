@@ -2,7 +2,7 @@ from .dorm import Connector
 
 class Settings:
 
-	def __init__(self, /, host: str, port: int, conns: int, conn_size: int, db: str, db_conn: dict):
+	def __init__(self, /, host: str, port: int, conns: int, conn_size: int, db: str, db_conn: dict, deploy: str = 'Local'):
 		self.host = host
 		self.port = port
 		self.conns = conns
@@ -10,3 +10,4 @@ class Settings:
 		self.db = db
 		self.db_conn = db_conn
 		self.connector = Connector(db=db, conn_values=db_conn)
+		self.deploy = deploy
