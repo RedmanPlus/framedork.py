@@ -3,6 +3,7 @@ import json
 from src.settings import Settings
 from src.preprocessor import insert_values_into_html
 from src.dorm import Connector, Model, StringField, IntField, FloatField, DateField
+from src.wsgi import Context
 
 RESPONSE_CODES = {
 	200: "HTTP/1.1 200 OK\r\n",
@@ -12,7 +13,16 @@ RESPONSE_CODES = {
 	500: "HTTP/1.1 500 Internal server error\r\n"
 }
 
+RESPONSE_CODES_WSGI = {
+	200: "200 OK",
+	400: "400 BAD REQUEST",
+	404: "404 NOT FOUND",
+	405: "405 Method not allowed",
+	500: "500 Internal server error"
+}
+
 PAGES = {}
+WSGI_CONTEXT = Context()
 DEBUG = False
 SETTINGS = None
 
@@ -118,38 +128,58 @@ def request_parse(request: bytes) -> dict:
 
 	return return_dict
 
-def construct_response(conn, code: int, page: str, content: str = 'html'):
-	if content == 'html':
-		headers = {
-			'Server': 'MyFramework',
-			'Content-Type': 'text/html; encoding=utf8',
-			'Content-Length': str(len(page)),
-			'Connection': 'keep-alive'
-		}
+def construct_response(conn, code: int, page: str, content: str = 'html', is_wsgi: bool = False):
+	if is_wsgi:
+		if content == "html":
+			headers = [
+				('Content-Type', 'text/html; encoding=utf8'),
+				('Content-Length', str(len(page))),
+				('Connection', 'keep-alive')
+			]
+			status = RESPONSE_CODES_WSGI[code]
 
-		headers_raw = ''.join('%s: %s\r\n' % (k, v) for k, v in headers.items())
+			return (page, status, headers)
+		elif content == "json":
+			headers = [
+				('Content-Type', 'application/json; encoding=utf8'),
+				('Content-Length', str(len(page))),
+				('Connection', 'keep-alive')
+			]
+			status = RESPONSE_CODES_WSGI[code]
 
-		conn.send(RESPONSE_CODES[code].encode())
-		conn.send(headers_raw.encode())
-		conn.send(b'\r\n')
-		conn.send(page.encode())
-	elif content == 'json':
+			return (page, status, headers)
+	else:
+		if content == 'html':
+			headers = {
+				'Server': 'MyFramework',
+				'Content-Type': 'text/html; encoding=utf8',
+				'Content-Length': str(len(page)),
+				'Connection': 'keep-alive'
+			}
 
-		page = json.dumps(page)
+			headers_raw = ''.join('%s: %s\r\n' % (k, v) for k, v in headers.items())
 
-		headers = {
-			'Server': 'MyFramework',
-			'Content-Type': 'application/json; encoding=utf8',
-			'Content-Length': str(len(page)),
-			'Connection': 'keep-alive'
-		}
+			conn.send(RESPONSE_CODES[code].encode())
+			conn.send(headers_raw.encode())
+			conn.send(b'\r\n')
+			conn.send(page.encode())
+		elif content == 'json':
 
-		headers_raw = ''.join('%s: %s\r\n' % (k, v) for k, v in headers.items())
+			page = json.dumps(page)
 
-		conn.send(RESPONSE_CODES[code].encode())
-		conn.send(headers_raw.encode())
-		conn.send(b'\r\n')
-		conn.send(page.encode())
+			headers = {
+				'Server': 'MyFramework',
+				'Content-Type': 'application/json; encoding=utf8',
+				'Content-Length': str(len(page)),
+				'Connection': 'keep-alive'
+			}
+
+			headers_raw = ''.join('%s: %s\r\n' % (k, v) for k, v in headers.items())
+
+			conn.send(RESPONSE_CODES[code].encode())
+			conn.send(headers_raw.encode())
+			conn.send(b'\r\n')
+			conn.send(page.encode())
 
 def run(*args):
 	if SETTINGS.deploy == 'Local'
@@ -215,3 +245,71 @@ def run(*args):
 		conn.close()
 	elif SETTINGS.deploy == 'WGSI':
 		pass
+
+def set_wsgi(*args):
+	global PAGES
+	global WSGI_CONTEXT
+
+	for function in args:
+		result = function()
+
+	WSGI_CONTEXT.set_context(PAGES)
+
+def run_wsgi(environ, start_response):
+	global WSGI_CONTEXT
+
+    try:
+        address = WSGI_CONTEXT.pages[environ['PATH_INFO']]
+
+        if address[2] == "html":
+        	if environ['REQUEST_METHOD'] not in address[0]:
+				response_data = construct_response(None, 405, '405.html', "html", True)
+				start_response(response_data[1], response_data[2])
+
+				return iter([response_data[0]])
+			else:
+				data = {}
+				if environ['QUERY_STRING'] != "":
+					params = environ['QUERY_STRING'].split("&")
+					
+					for param in params:
+						param = param.split("=")
+						data[param[0]] = param[1]
+
+				page, values = address[1](environ, **data)
+
+				result = insert_values_into_html(page, values)
+				response_data = construct_response(None, 200, result, "html", True)
+
+				start_response(response_data[1], response_data[2])
+
+				return iter([response_data[0]])
+		elif address[2] == "json":
+			if environ['REQUEST_METHOD'] not in address[0]:
+				response_data = construct_response(None, 405, '405.html', "json", True)
+				start_response(response_data[1], response_data[2])
+
+				return iter([response_data[0]])
+			else:
+				data = {}
+				if environ['QUERY_STRING'] != "":
+					params = environ['QUERY_STRING'].split("&")
+					
+					for param in params:
+						param = param.split("=")
+						data[param[0]] = param[1]
+
+				page, values = address[1](environ, **data)
+
+				result = insert_values_into_html(page, values)
+				response_data = construct_response(None, 200, result, "json", True)
+
+				start_response(response_data[1], response_data[2])
+
+				return iter([response_data[0]])
+	except KeyError:
+		response_data = construct_response(None, 404, "404.html", "html", True)
+
+		start_response(response_data[1], response_data[2])
+
+		return iter([response_data[0]])
