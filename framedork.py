@@ -30,9 +30,9 @@ def set_debug(debug: bool) -> None:
 	global DEBUG
 	DEBUG = debug
 
-def set_settings(host: str = '', port: int = 8080, conns: int = 1, conn_size: int = 1024, db: str = '', db_conn: dict = {}) -> None:
+def set_settings(host: str = '', port: int = 8080, conns: int = 1, conn_size: int = 1024, db: str = '', db_conn: dict = {}, deploy: str = "Local") -> None:
 	global SETTINGS
-	SETTINGS = Settings(host=host, port=port, conns=conns, conn_size=conn_size, db=db, db_conn=db_conn)
+	SETTINGS = Settings(host=host, port=port, conns=conns, conn_size=conn_size, db=db, db_conn=db_conn, deploy=deploy)
 
 def register_model(models: list) -> None:
 	connector = Connector(db=SETTINGS.db, conn_values=SETTINGS.db_conn)
@@ -254,6 +254,8 @@ def set_wsgi(*args):
 		result = function()
 
 	WSGI_CONTEXT.set_context(PAGES)
+
+	return run_wsgi
 
 def run_wsgi(environ, start_response):
 	global WSGI_CONTEXT
