@@ -291,7 +291,7 @@ def run_wsgi(environ, start_response):
 				response_data = construct_response(None, 405, '405.html', "json", True)
 				start_response(response_data[1], response_data[2])
 
-				return iter([response_data[0]])
+				return iter([bytes(response_data[0])])
 			else:
 				data = {}
 				if environ['QUERY_STRING'] != "":
@@ -308,10 +308,10 @@ def run_wsgi(environ, start_response):
 
 				start_response(response_data[1], response_data[2])
 
-				return iter([response_data[0]])
+				return iter([bytes(response_data[0])])
 	except KeyError:
 		response_data = construct_response(None, 404, "404.html", "html", True)
 
 		start_response(response_data[1], response_data[2])
 
-		return iter([response_data[0]])
+		return iter([bytes(response_data[0])])
