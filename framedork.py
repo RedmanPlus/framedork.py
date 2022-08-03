@@ -182,7 +182,7 @@ def construct_response(conn, code: int, page: str, content: str = 'html', is_wsg
 			conn.send(page.encode())
 
 def run(*args):
-	if SETTINGS.deploy == 'Local'
+	if SETTINGS.deploy == 'Local':
 		for function in args:
 			result = function()
 
@@ -260,11 +260,11 @@ def set_wsgi(*args):
 def run_wsgi(environ, start_response):
 	global WSGI_CONTEXT
 
-    try:
-        address = WSGI_CONTEXT.pages[environ['PATH_INFO']]
+	try:
+		address = WSGI_CONTEXT.pages[environ['PATH_INFO']]
 
-        if address[2] == "html":
-        	if environ['REQUEST_METHOD'] not in address[0]:
+		if address[2] == "html":
+			if environ['REQUEST_METHOD'] not in address[0]:
 				response_data = construct_response(None, 405, '405.html', "html", True)
 				start_response(response_data[1], response_data[2])
 
