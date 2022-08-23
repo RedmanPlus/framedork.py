@@ -307,3 +307,25 @@ if you're using a !# at the beguining of a file.
 The web server will be automatically started on 8080 port, where you can access it.
 
 **Please note that** currently you cannot shutdown your server from inside the program or terminal. You can try to use Ctrl-C, but it takes to much time and don't really work. We recomend currently to stop the python process from your machine's controll panell.
+
+##Running framedork.py with Gunicorn
+
+To run **framedork.py** with a web server, you'll need to change your file a little. Change your `framedork.run()` function at the end of the file to:
+
+```Python
+app = framedork.set_wsgi()
+```
+
+Register all of your functions in a `set_wsgi()` method. It will return an object, that we will then call with a Gunicorn.
+
+Now upload all of your work onto the server with Gunicorn installed on it and in a project directory call:
+
+```commandline
+gunicorn --workers=2 main:app
+```
+
+where
+- `main` is a name of your file
+- `app` is the name of the object returned by your `set_wsgi()` function
+
+Now your app will be hosted on a 127.0.0.1:5000, but you can specify the IP address.
