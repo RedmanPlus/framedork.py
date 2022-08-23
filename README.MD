@@ -308,7 +308,7 @@ The web server will be automatically started on 8080 port, where you can access 
 
 **Please note that** currently you cannot shutdown your server from inside the program or terminal. You can try to use Ctrl-C, but it takes to much time and don't really work. We recomend currently to stop the python process from your machine's controll panell.
 
-##Running framedork.py with Gunicorn
+## Running framedork.py with Gunicorn
 
 To run **framedork.py** with a web server, you'll need to change your file a little. Change your `framedork.run()` function at the end of the file to:
 
