@@ -3,24 +3,32 @@
 An attempt to learn how frameworks like Django or Flask work internally by trying to implement my own version.
 ***WARNING - this is by no means a production ready code and is not even supposed to be used in production. Changes might be applied to the codebase without any notice, so use cautiously***
 
+>**New in 0.2.0: we've refactored all of our code into the OOP, so the code created for the earlier version of the framedork will not work. Please refactor your application according to the new documentation**
 ## Getting started
 
 To start using framedork.py, simply clone the repository to your local machine with  `git clone https://github.com/RedmanPlus/framedork.py.git`. You can use all of the features by importing main file `framedork.py` into your main Python file like this:
 
-> `import framedork`
+```Python
+from src.framedork import Framedork
+from src.preprocessors.response import Response
+
+app = Framedork()
+```
+
+Here you create an instance of a framedork, that will handle all of the routing and connections from now on
 
 ## Defining a page
 
-To define a page, write a simple function using a `@register` decorator like this:
+To define a page, write a simple function using a `@app.register` decorator like this:
 
 ```Python
-@framedork.register('html', '/', ['GET'])
+@app.register('/', ['GET'])
 def index(request):
-	return "index.html", {}
+	return Response(["index.html", {}])
 ```
 
-Page function accepts a request from a browser (a dictionary of all possible parameters from a request), and returns a name of html file of the page and a dictionary of values, that need to be inserted into the page. You can inspect a note on tempating later. 
-You will need to specify all allowed methods for the page. If a page is called by a method, that is not declarated in a `register` decorator, **framedork** will send a '405 Method not allowed' error. Also you need to specify if a function returns html page or a json response.
+Page function accepts a request from a browser (a dictionary of all possible parameters from a request), and returns a Response object that accepts a relative adress of a template file and a dictionary with parameters that need to be added to the page. You can inspect a note on tempating later. 
+You will need to specify all allowed methods for the page. If a page is called by a method, that is not declarated in a `register` decorator, **framedork** will send a '405 Method not allowed' error.
 
 ## Accessing URL parameters
 
@@ -58,32 +66,32 @@ All three methods generate a `request['BODY']` dictionary, that you can accept. 
 It looks something like this:
 
 ```Python
-@framedork.register('/foo/', ['GET', 'POST', 'PUT', 'DELETE'])
+@app.register('/foo/', ['GET', 'POST', 'PUT', 'DELETE'])
 def foo(request, id=1):
 	match request['METHOD']:
-		case 'GET':										# A simple GET request, just returns
-			return 'test2.html', {'value': str(id)}		# a page with values from parameters
+		case 'GET':		# A simple GET request, just returns
+			return Response(['test2.html', {'value': str(id)}])	# a page with values from parameters
 		case 'POST':									
-			values = request['BODY']					# POST takes values from the request
-			animal.add(values)							# and uses them to create a new record
-			animal.save()								# in the database
-			return 'test2.html', {'value': str(id)}
+			values = request['BODY']	# POST takes values from the request
+			animal.add(values)			# and uses them to create a new record
+			animal.save()				# in the database
+			return Response(['test2.html', {'value': str(id)}])
 		case 'PUT':									
-			values = request['BODY']					# PUT request at first gets an entry
-			check = animal.filter({'id': 1})			# that needs to be checked, then
-			print(check)								# updates it with the data from a 
-			for key, value in values.items():			# PUT requet and updates the data
+			values = request['BODY']	# PUT request at first gets an entry
+			check = animal.filter({'id': id})# that needs to be checked, then
+			print(check)				# updates it with the data from a 
+			for key, value in values.items(): # PUT requet and updates the data
 				try:
 					check[0][key] = value
 				except KeyError:
 					continue
 			animal.add(check[0])
 			animal.save()
-			return 'test2.html', {'value': str(id)}
-		case 'DELETE':									# DELETE takes data from your request
-			values = request['BODY']					# and deletes all entries that satisfy
-			animal.delete(values)						# the condition
-			return 'test2.html', {'value': str(id)}
+			return Response(['test2.html', {'value': str(id)}])
+		case 'DELETE':		# DELETE takes data from your request
+			values = request['BODY']	# and deletes all entries that satisfy
+			animal.delete(values)		# the condition
+			return Response(['test2.html', {'value': str(id)}])
 ```
 
 All of the methods can be used to create a more interractive backend or to make an API.
@@ -173,7 +181,7 @@ framedork.register_model([animal])
 To use **DORM** models in your **framedork** functions, add `global` instruction in a beguining of the file like so:
 
 ```Python
-@framedork.register('/animal/', ['GET'])
+@app.register('/animal/', ['GET'])
 def animal_page(request, name='Hyena'):
 	global animal
 ```
@@ -231,65 +239,60 @@ Note that `delete()` method may delete multiple entries in your database if your
 
 ## Adding settings
 
-Settings in your **framedork** application are used for specifiing what host and port to connect to, and what are the database credentials. You must set your settings in the beguining of the file, before any usage of the models will beguin. It looks like this:
+Settings in your **framedork** application are used for specifiing what host and port to connect to, and what are the database credentials. You can set your settings in definition of a `Settings` class entity, that you'll then pass to the `Framedork` entity upon it's initialising. It looks like this:
 
 ```Python
-framedork.set_settings(
-	host='127.0.0.1',
-	port=8000,
-	db='psql',
-	db_conn={'host': 'localhost',
-				'dbname': 'orm_test',
-				'user': 'postgres',
-				'password': '####',
-				'port': '5432'
-				})
+settings = Settings(
+    port=8000,
+    db="postgres",
+    db_conn=DB_CONNECTION,
+    deploy="wsgi"
+)
 
-animal = Model(table='animal', fields=[
-	# ANY OTHER MODEL RELATED CODE...
+app = Framedork(settings)
 ```
 
-`set_settings()` function accepts these arguments:
+All of the arguments to the `Settings` class are optional and `Settings` are optional for the `Framedork` instanse themselves, but you can define these fields:
 - host: an IP adress from which the server will send the data.
 - port: the port that will be used for connection.
 - conns: the amount of consequent connections that are avaliable simultaneously.
 - conn_size: the amount of bytes allowed to be recieved once at a time by the server from the client.
 - db: a database you will use. Currently accepts only 'psql' as a parameter.
 - db_conn: All of the necessary credential information to connect with the database. Please make sure that all of the credentials are correct.
+- deploy: will define if your app is ran locally or by a WSGI web server.
 
-All of the `set_settings()` parameters are optional and have a default value exept the parameters related to the database.
 
 ## Using framedork for creating API-s
 
 You can specify what kind of response will the function send to the browser. To make your function send a json string, specify the content type in your `@register` decorator:
 
 ```Python
-@framedork.register('json', '/api/', ['GET', 'POST'])
+@app.register('/api/', ['GET', 'POST'])
 def api(request):
-	return {'hi': 'you\'re qute'}
+	return Response([{'hi': 'you\'re qute'}])
 ```
 
-Your function will return only a dictionary of values this time, without any html files specified. Now **framedork** will send it to the browser or to any endpoint that will call your website at this address. 
+Here your function returns a `Response` object that accepts only the list with a dictionary in it. Now **framedork** will send it to the browser or to any endpoint that will call your website at this address. 
 
 Also, since **DORM** `get()` and `filter()` methods return a list of dictionaries with entries to the database, you can simply fetch all the data you need and straight up send the response to the client like so:
 
 ```Python
-@framedork.register('json', '/api/', ['GET', 'POST'])
+@app.register('/api/', ['GET', 'POST'])
 def api(request, id=1):
 	response = animal.filter({'id': id})
 	if response == []:
 		return {'error': 'nothing found'}
-	return response[0]
+	return Response([response[0]])
 ```
 
 This way you can create a series of different endpoints that will communicate with the database, resulting in a full **framedork** backend.
 
 ## Running your website
 
-To run your website, you need to call a `run()` function at the end of the file. Your `run()` function must accept all of the functions you've written **not called** so they can be registered by the framework. You can do it like so:
+To run your website, you need to call a `run()` method of your `framedork` instance at the end of the file. Your `run()` method must accept all of the functions you've written **not called** so they can be registered by the framework. You can do it like so:
 
 ```Python
-framedork.run(index)
+app.run(index)
 ```
 Then simply run your file with
 
@@ -306,17 +309,17 @@ if you're using a !# at the beguining of a file.
 
 The web server will be automatically started on 8080 port, where you can access it.
 
-**Please note that** currently you cannot shutdown your server from inside the program or terminal. You can try to use Ctrl-C, but it takes to much time and don't really work. We recomend currently to stop the python process from your machine's controll panell.
+**Please note that** currently you cannot shutdown your server from inside the program or terminal. You can try to use Ctrl-C, but it can result with sockets being left open. We recomend currently to stop the python process from your machine's controll panell.
 
 ## Running framedork.py with Gunicorn
 
-To run **framedork.py** with a web server, you'll need to change your file a little. Change your `framedork.run()` function at the end of the file to:
+To run **framedork.py** with a web server, you'll need to change your file a little. Change your settings' `local` paramether to the `wsgi`. Now change your `app.run()` method at the end of the file to:
 
 ```Python
-app = framedork.set_wsgi()
+wsgi = app.run(index)
 ```
 
-Register all of your functions in a `set_wsgi()` method. It will return an object, that we will then call with a Gunicorn.
+Register all of your functions in a `run()` method. It will return an object, that we will then call with a Gunicorn.
 
 Now upload all of your work onto the server with Gunicorn installed on it and in a project directory call:
 
@@ -326,6 +329,6 @@ gunicorn --workers=2 main:app
 
 where
 - `main` is a name of your file
-- `app` is the name of the object returned by your `set_wsgi()` function
+- `wsgi` is the name of the object returned by your `run()` function
 
-Now your app will be hosted on a 127.0.0.1:5000, but you can specify the IP address.
+Now your app will be hosted on a 127.0.0.1:8000, but you can specify the IP address.
