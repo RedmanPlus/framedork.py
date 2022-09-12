@@ -287,6 +287,89 @@ def api(request, id=1):
 
 This way you can create a series of different endpoints that will communicate with the database, resulting in a full **framedork** backend.
 
+## Filters
+
+You can manage what requests are being passed to your function with filters. They check if the request falls into several constraints that you define and either passes it to the controller functions (if everything is ok) or sends an error to the client if some constraints are violated.
+
+**Framedork** uses build-in `URLMethodFilter` class as a default, but you can create your own filter.
+
+```Python
+from framedork.src.middleware.filters import BaseFilter
+
+class CustomFilter(BaseFilter):
+	CONSTRAINTS = [
+		...
+	]
+```
+
+All filters are derived from a `BaseFilter` parent class and have a list of constraints. A constraint is a function or callable that accepts a request (a simple dictionary), a context object and returns a boolean and a reason object. 
+
+```Python
+def is_allowed_url_parameters(request: dict, context: BaseContext) -> bool, reasons.Reason:
+	...
+```
+
+A context is a class that has all of the information about the state of the **framedork** that might be needed during evaluating. It can accept any given amount of arguments that then can be accessed during evaluation. For ease of use defining custom context classes with specific `@property` methods is advised.
+
+```Python
+class CuspomContext(BaseContext):
+
+	@property
+	def allowed_parameters(self):
+		return [param_name for param_name in self.objects.parameters_field]
+
+```
+
+Every context object has an inner `objects` attribute. It's a dataclass that holds all of the data passed upon the initializing the instance. For example:
+
+```Python
+
+parameters = {"x": "int", "y": "string"}
+
+context = CustomContext(parameters)
+
+```
+
+will create an internal dataclass like so:
+
+```Python
+
+@dataclass
+class CustomContextData:
+	parameters_field: dict
+
+```
+
+And will return an instance of it populated with the data that was passed to it upon initializing. You now can use this fields in your `@property` methods. For example, expanding on the earlier case:
+
+```Python
+def is_allowed_url_parameters(request: dict, context: BaseContext) -> bool, reasons.Reason:
+	for param in request['QUERY_PARAMS']:
+		if param not in context.allowed_parameters:
+			return False, reasons.ForbittenReason
+	
+	return True, None
+```
+
+will check if an incomming url-parameters are allowed to be passed to the **framedork** and in case of not, will send to a user a `403 Forbitten` HTTP response code.
+
+Now you simply add your function to the constraints of a filter:
+
+```Python
+class CustomFilter(BaseFilter):
+	CONSTRAINTS = [
+		is_allowed_url_parameter
+	]
+```
+
+and add use this filter as a primary filter for a **framedork** with `add_filter` method:
+
+```Python
+app.add_filter(CustomFilter(context=CustomContext(parameters)))
+```
+
+> *Note:* Please notice that this filter will not check for allowed methods or registered urls. You can add this by adding `is_allowed_method` and `is_registered_url` functions that can also be imported from a filter module. We recommend to add them to every filter that you write 
+
 ## Running your website
 
 To run your website, you need to call a `run()` method of your `framedork` instance at the end of the file. Your `run()` method must accept all of the functions you've written **not called** so they can be registered by the framework. You can do it like so:
