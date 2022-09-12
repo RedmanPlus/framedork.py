@@ -1,9 +1,10 @@
 import sys
 import logging
 
-from src.handlers.handlers import WSGIHandler
-from src.preprocessors.Response import ResponseHandler
-from src.preprocessors.HTML import HTMLPreprocessor
+from framedork.src.handlers.handlers import WSGIHandler
+from framedork.src.middleware.filters import BaseFilter
+from framedork.src.preprocessors.Response import ResponseHandler
+from framedork.src.preprocessors.HTML import HTMLPreprocessor
 
 class Context:
     def __init__(self):
@@ -14,7 +15,7 @@ class Context:
 
 class WSGIObject:
 
-    def __init__(self, pages):
+    def __init__(self, pages: list, filter: BaseFilter):
         self.pages = pages
         self.html_preprocessor = HTMLPreprocessor()
         self.handler = WSGIHandler(self.pages, self.html_preprocessor)
@@ -22,33 +23,36 @@ class WSGIObject:
         self.logger.setLevel(logging.DEBUG)
         self.logger.addHandler(logging.StreamHandler(stream=sys.stdout))
 
+        self.filter = filter
+
     def __call__(self, environ, start_response):
         self.logger.info(environ['PATH_INFO'])
-        try:
-            page = self.pages[environ['PATH_INFO']]
+        valid = self.filter(environ)
 
-            if environ['REQUEST_METHOD'] not in page.methods:
-                response = ResponseHandler(405, '405.html', "html", "wsgi")
-                response_data = response()
-                start_response(response_data[0], response_data[1])
-
-                return iter([response_data[2].encode()])
-
-            data = {}
-            if environ['QUERY_STRING'] != "":
-                params = environ['QUERY_STRING'].split("&")
-
-                for param in params:
-                    param = param.split("=")
-                    data[param[0]] = param[1]
-
-            response_data = self.handler(environ, **data)
-
-            start_response(response_data[0], response_data[1])
-            return iter([response_data[2].encode()])
-        except KeyError:
+        if not valid:
             response_data = ResponseHandler(404, "404.html", "html", "wsgi")()
+            start_response(response_data[0], response_data[1])
+            return iter([response_data[2].encode()])
 
+
+        page = self.pages[environ['PATH_INFO']]
+
+        if environ['REQUEST_METHOD'] not in page.methods:
+            response = ResponseHandler(405, '405.html', "html", "wsgi")
+            response_data = response()
             start_response(response_data[0], response_data[1])
 
             return iter([response_data[2].encode()])
+
+        data = {}
+        if environ['QUERY_STRING'] != "":
+            params = environ['QUERY_STRING'].split("&")
+
+            for param in params:
+                param = param.split("=")
+                data[param[0]] = param[1]
+
+        response_data = self.handler(environ, **data)
+
+        start_response(response_data[0], response_data[1])
+        return iter([response_data[2].encode()])

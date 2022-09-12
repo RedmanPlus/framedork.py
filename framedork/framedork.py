@@ -1,16 +1,17 @@
 import socket
 from typing import Callable, NoReturn
+from framedork.src.middleware.filters import BaseFilter, URLContext, URLFilter
 
-from src.handlers.handlers import LocalHandler
+from .src.handlers.handlers import LocalHandler
 
-from src.preprocessors.Request import RequestPreprocessor
-from src.etc.settings import Settings
-from src.preprocessors.HTML import HTMLPreprocessor
-from src.preprocessors.Response import ResponseHandler
-from src.DORM.dorm import Connector
-from src.etc.wsgi import Context, WSGIObject
+from .src.preprocessors.Request import RequestPreprocessor
+from .src.etc.settings import Settings
+from .src.preprocessors.HTML import HTMLPreprocessor
+from .src.preprocessors.Response import ResponseHandler
+from .src.DORM.dorm import Connector
+from .src.etc.wsgi import Context, WSGIObject
 
-from src.exceptions.handler_exceptions import MethodError
+from .src.exceptions.handler_exceptions import MethodError
 
 class Page:
 
@@ -37,6 +38,9 @@ class Framedork:
         self.request_preprocessor = RequestPreprocessor()
         self.html_preprocessor = HTMLPreprocessor()
 
+        self.filter: BaseFilter = None
+        self.preffered_filter: BaseFilter = None
+
     def register(self, addr: str, methods: list) -> Callable[[any], any]:
         def _decorator(func: Callable[[any], any]):
             def _wrapper(*args, **kwargs):
@@ -47,9 +51,20 @@ class Framedork:
             return _wrapper
         return _decorator
 
+    def add_filter(self, filter: BaseFilter) -> NoReturn:
+        self.preffered_filter = filter
+
+    def set_filter(self) -> NoReturn:
+        PAGES = self.PAGES
+        if self.preffered_filter is None:
+            self.filter = URLFilter(context=URLContext(PAGES))
+
     def run(self, *args) -> NoReturn:
         for arg in args:
             arg()
+
+        self.set_filter()
+
         if self.SETTINGS.deploy == "local":
             sock = socket.socket()
             sock.bind((self.SETTINGS.host, self.SETTINGS.port))
@@ -65,10 +80,13 @@ class Framedork:
                         break
 
                     request = self.request_preprocessor(data)
-                    if self.DEBUG:
-                        for key, value in request.items():
-                            print(f"{key}: {value}")
-                    try:
+
+                    valid = self.filter(request)
+
+                    if not valid:
+                        response = ResponseHandler(404, "404.html", "html", "local")()
+                        response_code = 404
+                    else:
                         address = self.PAGES[request['ADDR']]
                         if request['METHOD'] not in address.methods:
                             response = ResponseHandler(405, '405.html', "html", "local")()
@@ -82,12 +100,6 @@ class Framedork:
                             if result.method == "json":
                                 response = ResponseHandler(200, result.contents, "json", "local")()
                                 response_code = 200
-                    except KeyError:
-                        response = ResponseHandler(404, "404.html", "html", "local")()
-                        response_code = 404
-                        conn.close()
-                        sock.close()
-                        break
 
                     conn.send(response[0].encode())
                     conn.send(response[1].encode())
@@ -103,4 +115,4 @@ class Framedork:
                     break
         elif self.SETTINGS.deploy == "wsgi":
             
-            return WSGIObject(self.PAGES)
+            return WSGIObject(self.PAGES, self.filter)

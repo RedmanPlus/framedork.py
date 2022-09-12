@@ -1,5 +1,5 @@
-from src.preprocessors.HTML import HTMLPreprocessor
-from src.preprocessors.Response import ResponseHandler
+from framedork.src.preprocessors.HTML import HTMLPreprocessor
+from framedork.src.preprocessors.Response import ResponseHandler
 
 class BasicHandler:
 
