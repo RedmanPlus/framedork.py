@@ -10,7 +10,7 @@ from src.preprocessors.Response import ResponseHandler
 from src.DORM.dorm import Connector
 from src.etc.wsgi import Context, WSGIObject
 
-from .exceptions.handler_exceptions import MethodError
+from src.exceptions.handler_exceptions import MethodError
 
 class Page:
 
