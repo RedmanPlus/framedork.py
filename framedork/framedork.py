@@ -1,6 +1,6 @@
 import socket
 from typing import Callable, NoReturn
-from framedork.src.middleware.filters import BaseFilter, URLContext, URLFilter
+from framedork.src.middleware.filters import BaseFilter, URLMethodContext, URLMethodFilter
 
 from .src.handlers.handlers import LocalHandler
 
@@ -57,7 +57,7 @@ class Framedork:
     def set_filter(self) -> NoReturn:
         PAGES = self.PAGES
         if self.preffered_filter is None:
-            self.filter = URLFilter(context=URLContext(PAGES))
+            self.filter = URLMethodFilter(context=URLMethodContext(PAGES))
 
     def run(self, *args) -> NoReturn:
         for arg in args:
@@ -88,18 +88,14 @@ class Framedork:
                         response_code = 404
                     else:
                         address = self.PAGES[request['ADDR']]
-                        if request['METHOD'] not in address.methods:
-                            response = ResponseHandler(405, '405.html', "html", "local")()
-                            response_code = 405
-                        else:
-                            result = address(request, **request['PARAMS'])
-                            if result.method == "html":
-                                result.contents = self.html_preprocessor(*result.contents)
-                                response = ResponseHandler(200, result.contents, "html", "local")()
-                                response_code = 200
-                            if result.method == "json":
-                                response = ResponseHandler(200, result.contents, "json", "local")()
-                                response_code = 200
+                        result = address(request, **request['PARAMS'])
+                        if result.method == "html":
+                            result.contents = self.html_preprocessor(*result.contents)
+                            response = ResponseHandler(200, result.contents, "html", "local")()
+                            response_code = 200
+                        if result.method == "json":
+                            response = ResponseHandler(200, result.contents, "json", "local")()
+                            response_code = 200
 
                     conn.send(response[0].encode())
                     conn.send(response[1].encode())

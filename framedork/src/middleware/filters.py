@@ -32,6 +32,18 @@ class URLContext(BaseContext):
 
         return registered
 
+class MethodContext(BaseContext):
+
+    @property
+    def page_methods(self):
+        pages = self.objects.PAGES_field
+        methods = {k: v.methods for k, v in pages.items()}
+
+        return methods
+
+class URLMethodContext(URLContext, MethodContext):
+    pass
+
 class BaseFilter:
 
     CONSTRAINTS: List[Callable[[dict, BaseContext], bool]] = []
@@ -51,8 +63,20 @@ def is_registered_url(request: dict, context: BaseContext) -> bool:
         return False
     return True
 
+def is_allowed_method(request: dict, context: BaseContext) -> bool:
+    if request['REQUEST_METHOD'] not in context.page_methods[request['PATH_INFO']]:
+        return False
+    return True
+
 class URLFilter(BaseFilter):
 
     CONSTRAINTS: List[Callable[[dict, BaseContext], bool]] = [
         is_registered_url
+    ]
+
+class URLMethodFilter(BaseFilter):
+
+    CONSTRAINTS: List[Callable[[dict, BaseContext], bool]] = [
+        is_registered_url,
+        is_allowed_method
     ]

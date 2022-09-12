@@ -37,13 +37,6 @@ class WSGIObject:
 
         page = self.pages[environ['PATH_INFO']]
 
-        if environ['REQUEST_METHOD'] not in page.methods:
-            response = ResponseHandler(405, '405.html', "html", "wsgi")
-            response_data = response()
-            start_response(response_data[0], response_data[1])
-
-            return iter([response_data[2].encode()])
-
         data = {}
         if environ['QUERY_STRING'] != "":
             params = environ['QUERY_STRING'].split("&")
