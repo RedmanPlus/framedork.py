@@ -81,11 +81,11 @@ class Framedork:
 
                     request = self.request_preprocessor(data)
 
-                    valid = self.filter(request)
+                    valid, reason = self.filter(request)
 
                     if not valid:
-                        response = ResponseHandler(404, "404.html", "html", "local")()
-                        response_code = 404
+                        response = ResponseHandler(reason(), f"{reason()}.html", "html", "local")()
+                        response_code = reason()
                     else:
                         address = self.PAGES[request['ADDR']]
                         result = address(request, **request['PARAMS'])

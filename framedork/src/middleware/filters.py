@@ -2,6 +2,8 @@ import inspect
 from typing import List, Callable, NoReturn
 from dataclasses import make_dataclass
 
+from . import reasons
+
 class BaseContext:
 
     def __init__(self, *args):
@@ -53,20 +55,21 @@ class BaseFilter:
 
     def __call__(self, request: dict) -> bool:
         for constraint in self.CONSTRAINTS:
-            if not constraint(request, self.context):
-                return False
+            valid, reason = constraint(request, self.context)
+            if not valid:
+                return False, reason
         
-        return True
+        return True, None
 
 def is_registered_url(request: dict, context: BaseContext) -> bool:
     if request["PATH_INFO"] not in context.registered_urls:
-        return False
-    return True
+        return False, reasons.NotFoundReason()
+    return True, None
 
 def is_allowed_method(request: dict, context: BaseContext) -> bool:
     if request['REQUEST_METHOD'] not in context.page_methods[request['PATH_INFO']]:
-        return False
-    return True
+        return False, reasons.NotAllowedReason()
+    return True, None
 
 class URLFilter(BaseFilter):
 

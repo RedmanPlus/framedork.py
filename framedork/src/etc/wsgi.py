@@ -27,10 +27,10 @@ class WSGIObject:
 
     def __call__(self, environ, start_response):
         self.logger.info(environ['PATH_INFO'])
-        valid = self.filter(environ)
+        valid, reason = self.filter(environ)
 
         if not valid:
-            response_data = ResponseHandler(404, "404.html", "html", "wsgi")()
+            response_data = ResponseHandler(reason(), f"{reason()}.html", "html", "wsgi")()
             start_response(response_data[0], response_data[1])
             return iter([response_data[2].encode()])
 
