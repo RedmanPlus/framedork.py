@@ -25,6 +25,10 @@ class BaseContext:
         self.objects = data_class(*args)
 
 
+    def __call__(self, *args):
+        super().__init__(*args,)
+
+
 class URLContext(BaseContext):
 
     @property

@@ -4,7 +4,6 @@ from framedork.src.etc.utils import Page
 
 from framedork.src.handlers.handlers import WSGIHandler
 from framedork.src.middleware.filters import BaseFilter
-from framedork.src.middleware.middleware import BaseMiddleware
 from framedork.src.preprocessors.Response import ResponseHandler
 from framedork.src.preprocessors.HTML import HTMLPreprocessor
 
@@ -17,7 +16,7 @@ class Context:
 
 class WSGIObject:
 
-    def __init__(self, pages: list, filter: BaseFilter, middleware: BaseMiddleware):
+    def __init__(self, pages: list, filter: BaseFilter):
         self.pages = pages
         self.html_preprocessor = HTMLPreprocessor()
         self.handler = WSGIHandler(self.pages, self.html_preprocessor)
@@ -26,18 +25,6 @@ class WSGIObject:
         self.logger.addHandler(logging.StreamHandler(stream=sys.stdout))
 
         self.filter = filter
-        self.middlewares = middleware
-
-    def evaluate_middlewares(self, request: dict) -> Page:
-        if self.middlewares is None:
-            return self.handler(request)
-
-        for middleware in self.middlewares:
-            page = middleware(request)
-            if page is not None:
-                return page
-
-        return self.handler(request)
 
     def __call__(self, environ, start_response):
         self.logger.info(environ['PATH_INFO'])
@@ -48,8 +35,7 @@ class WSGIObject:
             start_response(response_data[0], response_data[1])
             return iter([response_data[2].encode()])
 
-
-        page = self.evaluate_middlewares(environ)
+        page = self.pages.get(environ["PATH_INFO"])
 
         data = {}
         if environ['QUERY_STRING'] != "":
