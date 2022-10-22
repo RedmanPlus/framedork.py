@@ -5,7 +5,7 @@ from middlewares import URLParamsFilter, URLParamsContext
 
 app = Framedork(settings=settings)
 
-app.add_filter(URLParamsFilter(URLParamsContext()))
+app.add_filter(URLParamsFilter, URLParamsContext)
 
 @app.register("/", ["GET"])
 def index(request, name):

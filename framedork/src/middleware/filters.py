@@ -7,26 +7,27 @@ from . import reasons
 class BaseContext:
 
     def __init__(self, *args):
-
+        print(args)
         fields = []
         frame = inspect.currentframe().f_back
         tmp1 = dict(frame.f_globals.items())
         tmp2 = dict(frame.f_locals.items())
         tmp = dict(tmp1, **tmp2)
-
+        print(tmp)
         for arg in args:
             for k, var in tmp.items():
                 if isinstance(var, arg.__class__):
                     if arg == var:
                         field = (f"{k}_field", type(arg))
                         fields.append(field)
-
+        print(fields)
         data_class = make_dataclass(f"{type(self).__name__}Data", fields)
         self.objects = data_class(*args)
+        print(self.objects.__dict__)
 
 
     def __call__(self, *args):
-        super().__init__(*args,)
+        super().__init__(*args)
 
 
 class URLContext(BaseContext):
@@ -56,6 +57,9 @@ class BaseFilter:
 
     def __init__(self, context: BaseContext) -> NoReturn:
         self.context = context
+
+    def init_context(self, *args):
+        self.context(*args)
 
     def __call__(self, request: dict) -> bool:
         for constraint in self.CONSTRAINTS:

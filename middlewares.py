@@ -1,15 +1,16 @@
-from framedork.src.middleware.filters import BaseFilter, BaseContext, is_registered_url, is_allowed_method
+from framedork.src.middleware.filters import BaseFilter, URLMethodContext, is_registered_url, is_allowed_method
 from framedork.src.middleware import reasons
 
-class URLParamsContext(BaseContext):
+class URLParamsContext(URLMethodContext):
 
     @property
     def url_params(self):
         return self.objects.request_field["QUERY_PARAMS"]
 
 
-def has_url_params(request: dict, context: BaseContext) -> bool:
-    context = context(request)
+def has_url_params(request: dict, context: URLParamsContext) -> bool:
+    PAGES = context.objects.PAGES_field
+    context = context(request, PAGES)
 
     if context.url_params is not None:
         return True, None

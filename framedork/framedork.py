@@ -1,7 +1,7 @@
 import socket
 from typing import Callable, NoReturn
 from framedork.src.etc.utils import Page, RegisterMixin
-from framedork.src.middleware.filters import BaseFilter, URLMethodContext, URLMethodFilter
+from framedork.src.middleware.filters import BaseContext, BaseFilter, URLMethodContext, URLMethodFilter
 
 from .src.handlers.handlers import LocalHandler
 
@@ -27,15 +27,19 @@ class Framedork(RegisterMixin):
         self.html_preprocessor = HTMLPreprocessor()
 
         self.filter: BaseFilter = None
+        self.preffered_context: BaseContext = None
         self.preffered_filter: BaseFilter = None
 
-    def add_filter(self, filter: BaseFilter) -> NoReturn:
+    def add_filter(self, filter: BaseFilter, context: BaseContext) -> NoReturn:
         self.preffered_filter = filter
+        self.preffered_context = context
 
     def set_filter(self) -> NoReturn:
         PAGES = self.PAGES
         if self.preffered_filter is None:
             self.filter = URLMethodFilter(context=URLMethodContext(PAGES))
+        else:
+            self.filter = self.preffered_filter(context=self.preffered_context(PAGES))
 
     def run(self, *args) -> NoReturn:
         for arg in args:
